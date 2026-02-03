@@ -145,64 +145,54 @@
         <div id="chat-content" class="flex-1 p-4 overflow-y-auto text-sm space-y-3 bg-slate-50">
             <div class="bg-white p-3 rounded-xl shadow-sm border-l-4 border-indigo-400">
                 <p class="text-gray-600 italic">咩～我是小羊助教！選好喜歡的字體了嗎？想聽發音可以點擊歌詞方塊喔！🐑</p>
-            </div>
-        </div>
-        <div class="p-2 border-t flex gap-1 bg-white">
-            <input type="text" id="chat-input" class="flex-1 border p-2 rounded-full text-xs px-4 outline-none focus:border-indigo-400" placeholder="詢問或請求轉換格式...">
-            <button onclick="chatWithAI()" class="theme-bg text-white px-4 rounded-full text-xs font-bold">問</button>
-        </div>
-    </div>
-
-    <script type="module">
+            <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-        // 點擊發音
+        // --- 1. 測試模式邏輯 ---
+        let isTestMode = false;
+
+        window.toggleTestMode = function() {
+            isTestMode = !isTestMode;
+            const rts = document.querySelectorAll('rt');
+            
+            rts.forEach(rt => {
+                rt.style.opacity = isTestMode ? '0' : '1';
+                rt.style.transition = 'opacity 0.3s ease';
+            });
+            
+            const chatContent = document.getElementById('chat-content');
+            const statusMsg = isTestMode ? "🎯 測試模式：已隱藏假名！點擊歌詞可聽發音。" : "📖 學習模式：已顯示假名。";
+            chatContent.innerHTML += `<div class="mb-2"><span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-[10px] shadow-sm">${statusMsg}</span></div>`;
+            chatContent.scrollTop = chatContent.scrollHeight;
+        };
+
+        // --- 2. 語音發音邏輯 (優先讀取標註) ---
         window.speak = function(element) {
-    const jpLine = element.querySelector('.jp-line');
-    let textToSpeak = "";
+            const jpLine = element.querySelector('.jp-line');
+            if (!jpLine) return;
 
-    // 遍歷所有節點，如果有 ruby 標籤，就抓取 rt 裡的讀音
-    jpLine.childNodes.forEach(node => {
-        if (node.nodeName === 'RUBY') {
-            // 優先抓取 rt 標籤內的讀音
-            const rt = node.querySelector('rt');
-            textToSpeak += rt ? rt.innerText : node.innerText;
-        } else {
-            // 一般文字直接加入
-            textToSpeak += node.textContent;
-        }
-    });
-let isTestMode = false;
+            let textToSpeak = "";
+            jpLine.childNodes.forEach(node => {
+                if (node.nodeName === 'RUBY') {
+                    const rt = node.querySelector('rt');
+                    textToSpeak += rt ? rt.innerText : node.innerText;
+                } else {
+                    textToSpeak += node.textContent;
+                }
+            });
 
-window.toggleTestMode = function() {
-   // 定義測試模式狀態
-let isTestMode = false;
+            const uttr = new SpeechSynthesisUtterance(textToSpeak);
+            uttr.lang = 'ja-JP';
+            uttr.rate = 0.85; 
+            window.speechSynthesis.cancel(); 
+            window.speechSynthesis.speak(uttr);
+        };
 
-// 測試模式切換函數
-window.toggleTestMode = function() {
-    isTestMode = !isTestMode;
-    const rts = document.querySelectorAll('rt');
-    
-    // 切換所有假名的透明度
-    rts.forEach(rt => {
-        rt.style.opacity = isTestMode ? '0' : '1';
-        rt.style.transition = 'opacity 0.3s ease'; // 增加一點平滑感
-    });
-    
-    // 更新對話框提示
-    const chatContent = document.getElementById('chat-content');
-    const statusMsg = isTestMode ? "🎯 測試模式：已隱藏假名！點擊歌詞可聽發音檢查。" : "📖 學習模式：已顯示假名。";
-    chatContent.innerHTML += `<div class="mb-2"><span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-[10px] shadow-sm">${statusMsg}</span></div>`;
-    chatContent.scrollTop = chatContent.scrollHeight;
-};
-
-// 更新語音函數：讓它變聰明，優先讀標註的讀音
-window.speak = function(element) {
-    const jpLine = element.querySelector('.jp-line');
-    if (!jpLine) return;
-
-    let textToSpeak = "";
-    // 遍歷節點，優先抓取 rt 標籤裡的文字
+        // --- 3. 介面樣式更新 ---
+        window.updateStyle = (p, v) => {
+            document.documentElement.style.setProperty(p, v);
+            localStorage.setItem('kashikami-' + p, v);
+        };
     jpLine.childNodes.forEach(node => {
         if (node.nodeName === 'RUBY') {
             const rt = node.querySelector('rt');
@@ -353,4 +343,5 @@ window.speak = function(element) {
         };
     </script>
 </body>
+
 </html>
